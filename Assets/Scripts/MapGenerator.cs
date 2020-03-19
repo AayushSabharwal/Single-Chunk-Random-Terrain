@@ -15,32 +15,36 @@ public class MapGenerator : MonoBehaviour
 	public int levelOfDetail;   //we clamp it to 0, 6 and multiply it by 2 for x. Hence, we get 0, 2, 4, 6, 8, 10, 12 which all are factors of 240
 								//note that 0 will be manually clamped to 1 since we have to increment point by something
 
-	public float noiseScale;
+	public TerrainData terrainData;
+	public NoiseData noiseData;
 
-	public int octaves;
-	[Range(0f, 1f)]
-	public float persistence;
-	public float lacunarity;
-
-	public int seed;
-	public Vector2 offset;
-
-	public float meshHeightMultiplier;  //multiply height of each node to create terrain
-	public AnimationCurve meshHeightCurve;  //curve that indicates how much heightMap values should be affected by multiplier. We want water to be less affected than hills
 	public bool autoUpdate;
 
 	public TerrainType[] regions;
 
+	void OnValuesUpdated()
+	{
+		if (!Application.isPlaying)
+		{
+			GenerateMap();
+		}
+	}
+
 	public void GenerateMap()
 	{
-		float[,] noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistence, lacunarity, offset);    //generate noise map
+		float[,] noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, noiseData.seed, noiseData.noiseScale, noiseData.octaves, noiseData.persistence,
+													noiseData.lacunarity, noiseData.offset);    //generate noise map
 
 		Color[] colourMap = new Color[mapChunkSize * mapChunkSize];    //colourmap for pixels
-		for (int y = 0; y < mapChunkSize; y++) { //looping through all points
-			for (int x = 0; x < mapChunkSize; x++) {
+		for (int y = 0; y < mapChunkSize; y++)
+		{ //looping through all points
+			for (int x = 0; x < mapChunkSize; x++)
+			{
 				float currentHeight = noiseMap[x, y];
-				for (int i = 0; i < regions.Length; i++) {    //looping through all regions
-					if (currentHeight <= regions[i].height) { //if our pixel falls under current region's category
+				for (int i = 0; i < regions.Length; i++)
+				{    //looping through all regions
+					if (currentHeight <= regions[i].height)
+					{ //if our pixel falls under current region's category
 						colourMap[y * mapChunkSize + x] = regions[i].colour;    //give it the proper colour
 						break;
 					}
@@ -49,30 +53,37 @@ public class MapGenerator : MonoBehaviour
 		}
 
 		MapDisplay display = FindObjectOfType<MapDisplay>();    //self explanatory
-		if (drawMode == DrawMode.NoiseMap) {
+		if (drawMode == DrawMode.NoiseMap)
+		{
 			display.DrawTexture(TextureGenerator.TextureFromHeightMap(noiseMap)); //draw the visualisaton of the noise map
 		}
-		else if (drawMode == DrawMode.ColourMap) {
+		else if (drawMode == DrawMode.ColourMap)
+		{
 			display.DrawTexture(TextureGenerator.TextureFromColourMap(colourMap, mapChunkSize, mapChunkSize)); //draw colours
 		}
-		else if (drawMode == DrawMode.Mesh) {
-			display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail), TextureGenerator.TextureFromColourMap(colourMap, mapChunkSize, mapChunkSize));//draw mesh
+		else if (drawMode == DrawMode.Mesh)
+		{
+			display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, terrainData.meshHeightMultiplier, terrainData.meshHeightCurve, levelOfDetail), TextureGenerator.TextureFromColourMap(colourMap, mapChunkSize, mapChunkSize));//draw mesh
 		}
-
-
 
 	}
 
-	private void OnValidate()   //called automatically when a value is changed in the editor
+	private void OnValidate()
 	{
-		if (lacunarity < 1f) {
-			lacunarity = 1f;
+		if (terrainData != null)
+		{
+			terrainData.OnValuesUpdated -= OnValuesUpdated;	//this ensures each change we dont call this function many times
+			terrainData.OnValuesUpdated += OnValuesUpdated;
 		}
 
-		if (octaves < 0) {
-			octaves = 0;
+		if (noiseData != null)
+		{
+			noiseData.OnValuesUpdated -= OnValuesUpdated;
+			noiseData.OnValuesUpdated += OnValuesUpdated;
 		}
 	}
+
+
 }
 
 [System.Serializable]   //so it comes up in inspector
