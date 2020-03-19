@@ -17,11 +17,11 @@ public class MapGenerator : MonoBehaviour
 
 	public TerrainData terrainData;
 	public NoiseData noiseData;
+	public TextureData textureData;
+
+	public Material terrainMaterial;
 
 	public bool autoUpdate;
-
-	public TerrainType[] regions;
-
 	void OnValuesUpdated()
 	{
 		if (!Application.isPlaying)
@@ -30,40 +30,27 @@ public class MapGenerator : MonoBehaviour
 		}
 	}
 
+	void OnTextureValuesUpdated()
+	{
+		textureData.ApplyToMaterial(terrainMaterial);
+	}
+
 	public void GenerateMap()
 	{
 		float[,] noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, noiseData.seed, noiseData.noiseScale, noiseData.octaves, noiseData.persistence,
 													noiseData.lacunarity, noiseData.offset);    //generate noise map
 
-		Color[] colourMap = new Color[mapChunkSize * mapChunkSize];    //colourmap for pixels
-		for (int y = 0; y < mapChunkSize; y++)
-		{ //looping through all points
-			for (int x = 0; x < mapChunkSize; x++)
-			{
-				float currentHeight = noiseMap[x, y];
-				for (int i = 0; i < regions.Length; i++)
-				{    //looping through all regions
-					if (currentHeight <= regions[i].height)
-					{ //if our pixel falls under current region's category
-						colourMap[y * mapChunkSize + x] = regions[i].colour;    //give it the proper colour
-						break;
-					}
-				}
-			}
-		}
-
+		textureData.UpdateMeshHeights(terrainMaterial, terrainData.minHeight, terrainData.maxHeight);
+		
 		MapDisplay display = FindObjectOfType<MapDisplay>();    //self explanatory
 		if (drawMode == DrawMode.NoiseMap)
 		{
 			display.DrawTexture(TextureGenerator.TextureFromHeightMap(noiseMap)); //draw the visualisaton of the noise map
 		}
-		else if (drawMode == DrawMode.ColourMap)
-		{
-			display.DrawTexture(TextureGenerator.TextureFromColourMap(colourMap, mapChunkSize, mapChunkSize)); //draw colours
-		}
 		else if (drawMode == DrawMode.Mesh)
 		{
-			display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, terrainData.meshHeightMultiplier, terrainData.meshHeightCurve, levelOfDetail), TextureGenerator.TextureFromColourMap(colourMap, mapChunkSize, mapChunkSize));//draw mesh
+			display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, terrainData.meshHeightMultiplier, terrainData.meshHeightCurve, 
+																terrainData.uniformScale, levelOfDetail));//draw mesh
 		}
 
 	}
@@ -72,7 +59,7 @@ public class MapGenerator : MonoBehaviour
 	{
 		if (terrainData != null)
 		{
-			terrainData.OnValuesUpdated -= OnValuesUpdated;	//this ensures each change we dont call this function many times
+			terrainData.OnValuesUpdated -= OnValuesUpdated; //this ensures each change we dont call this function many times
 			terrainData.OnValuesUpdated += OnValuesUpdated;
 		}
 
@@ -81,15 +68,13 @@ public class MapGenerator : MonoBehaviour
 			noiseData.OnValuesUpdated -= OnValuesUpdated;
 			noiseData.OnValuesUpdated += OnValuesUpdated;
 		}
+
+		if (textureData != null)
+		{
+			textureData.OnValuesUpdated -= OnTextureValuesUpdated;
+			textureData.OnValuesUpdated += OnTextureValuesUpdated;
+		}
 	}
 
 
-}
-
-[System.Serializable]   //so it comes up in inspector
-public struct TerrainType   //used to colour our map. Specify what terrain has what colour at what height
-{
-	public string name;
-	public float height;
-	public Color colour;
 }

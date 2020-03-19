@@ -9,12 +9,14 @@ public class UpdatableData : ScriptableObject
 	{
 		if(autoUpdate)
 		{
-			NotifyOfUpdatedValues();
+			UnityEditor.EditorApplication.update += NotifyOfUpdatedValues;	//this allows the function to be called after the shader recompiles, so that
+																			//the shader values don't reset the mesh to white
 		}
 	}
 
 	public void NotifyOfUpdatedValues()
 	{
+		UnityEditor.EditorApplication.update -= NotifyOfUpdatedValues;	//remove it so that it isn't called every frame
 		if(OnValuesUpdated != null)
 		{
 			OnValuesUpdated();
